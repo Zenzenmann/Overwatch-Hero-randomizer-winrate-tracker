@@ -420,7 +420,7 @@
     text-transform: uppercase;
   }
 
-  /* ── LEADERBOARD ── */
+  /* ── Statistics ── */
   .lb-controls {
     display: flex;
     gap: 8px;
@@ -724,7 +724,7 @@
   <!-- Tabs -->
   <div class="tabs">
     <button class="tab active" onclick="switchTab('play')">Play</button>
-    <button class="tab" onclick="switchTab('leaderboard')">Leaderboard</button>
+    <button class="tab" onclick="switchTab('Statistics')">Statistics</button>
   </div>
 
   <!-- PLAY PANEL -->
@@ -777,8 +777,8 @@
 
   </div>
 
-  <!-- LEADERBOARD PANEL -->
-  <div class="panel" id="panel-leaderboard">
+  <!-- Statistics PANEL -->
+  <div class="panel" id="panel-Statistics">
 
     <div class="lb-controls">
       <button class="lb-sort-btn active" onclick="setSort('winrate')" id="sort-winrate">Winrate</button>
@@ -889,10 +889,10 @@ function loadFile(event) {
 
 // ── TABS ──
 function switchTab(name) {
-  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['play','leaderboard'][i] === name));
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['play','Statistics'][i] === name));
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.getElementById('panel-' + name).classList.add('active');
-  if (name === 'leaderboard') renderLeaderboard();
+  if (name === 'Statistics') renderStatistics();
 }
 
 // ── ROLE SELECT ──
@@ -1027,12 +1027,12 @@ function renderLog() {
   `).join('');
 }
 
-// ── LEADERBOARD ──
+// ── Statistics ──
 function setSort(s) {
   lbSort = s;
   document.querySelectorAll('.lb-sort-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('sort-' + s).classList.add('active');
-  renderLeaderboard();
+  renderStatistics();
 }
 
 function setFilter(f) {
@@ -1040,10 +1040,10 @@ function setFilter(f) {
   document.querySelectorAll('.lb-filter-btn').forEach(b => b.classList.remove('active'));
   const btn = document.getElementById('filter-' + f);
   btn.classList.add('active');
-  renderLeaderboard();
+  renderStatistics();
 }
 
-function renderLeaderboard() {
+function renderStatistics() {
   const body = document.getElementById('lbBody');
   let entries = Object.entries(heroStats);
 
