@@ -1,0 +1,1175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Overwatch Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Oxanium:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080a0f;
+    --surface: #0e1118;
+    --surface2: #151923;
+    --border: #1e2433;
+    --border2: #2a3247;
+    --tank: #38a8e0;
+    --tank-dim: rgba(56,168,224,0.12);
+    --dps: #e05050;
+    --dps-dim: rgba(224,80,80,0.12);
+    --supp: #40c080;
+    --supp-dim: rgba(64,192,128,0.12);
+    --gold: #e8b840;
+    --gold-dim: rgba(232,184,64,0.15);
+    --text: #d8dce8;
+    --muted: #4a5268;
+    --muted2: #6a738a;
+    --win: #40c080;
+    --loss: #e05050;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Scanline bg */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(255,255,255,0.008) 2px,
+      rgba(255,255,255,0.008) 4px
+    );
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Corner accent */
+  body::after {
+    content: '';
+    position: fixed;
+    top: 0; right: 0;
+    width: 300px; height: 300px;
+    background: radial-gradient(circle at top right, rgba(56,168,224,0.06), transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 32px 20px 80px;
+  }
+
+  /* ── HEADER ── */
+  header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 40px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .brand {
+    font-family: 'Oxanium', sans-serif;
+  }
+
+  .brand-sub {
+    font-size: 11px;
+    letter-spacing: 5px;
+    color: var(--muted2);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .brand-title {
+    font-size: 36px;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--text);
+  }
+
+  .brand-title span { color: var(--gold); }
+
+  .streak-display {
+    text-align: right;
+  }
+
+  .streak-label {
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--muted2);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .streak-value {
+    font-family: 'Oxanium', sans-serif;
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  .streak-value.win-streak  { color: var(--win); }
+  .streak-value.loss-streak { color: var(--loss); }
+  .streak-value.none        { color: var(--muted); }
+
+  /* ── TABS ── */
+  .tabs {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 28px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 4px;
+  }
+
+  .tab {
+    flex: 1;
+    font-family: 'Oxanium', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    padding: 10px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: transparent;
+    color: var(--muted2);
+  }
+
+  .tab:hover { color: var(--text); }
+  .tab.active { background: var(--surface2); color: var(--text); border: 1px solid var(--border2); }
+
+  /* ── PANELS ── */
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* ── ROLE GRID ── */
+  .role-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .role-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+    position: relative;
+  }
+
+  .role-btn:hover { border-color: var(--border2); transform: translateY(-2px); }
+
+  .role-btn.active.tank { border-color: var(--tank); background: var(--tank-dim); box-shadow: 0 0 20px rgba(56,168,224,0.2); }
+  .role-btn.active.dps  { border-color: var(--dps);  background: var(--dps-dim);  box-shadow: 0 0 20px rgba(224,80,80,0.2); }
+  .role-btn.active.supp { border-color: var(--supp); background: var(--supp-dim); box-shadow: 0 0 20px rgba(64,192,128,0.2); }
+
+  .role-icon { font-size: 24px; margin-bottom: 6px; display: block; }
+
+  .role-name {
+    font-family: 'Oxanium', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    display: block;
+  }
+
+  .role-btn.tank .role-name { color: var(--tank); }
+  .role-btn.dps  .role-name { color: var(--dps); }
+  .role-btn.supp .role-name { color: var(--supp); }
+
+  .role-record {
+    font-size: 12px;
+    color: var(--muted2);
+    margin-top: 3px;
+    font-family: 'Rajdhani', sans-serif;
+    letter-spacing: 1px;
+  }
+
+  /* ── HERO CARD ── */
+  .hero-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 28px;
+    text-align: center;
+    margin-bottom: 16px;
+    min-height: 130px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.3s, box-shadow 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .hero-card.tank { border-color: var(--tank); box-shadow: 0 0 28px rgba(56,168,224,0.15); }
+  .hero-card.dps  { border-color: var(--dps);  box-shadow: 0 0 28px rgba(224,80,80,0.15); }
+  .hero-card.supp { border-color: var(--supp); box-shadow: 0 0 28px rgba(64,192,128,0.15); }
+
+  .hero-card.tank::before { background: radial-gradient(ellipse at center, rgba(56,168,224,0.07), transparent 70%); opacity: 1; }
+  .hero-card.dps::before  { background: radial-gradient(ellipse at center, rgba(224,80,80,0.07),  transparent 70%); opacity: 1; }
+  .hero-card.supp::before { background: radial-gradient(ellipse at center, rgba(64,192,128,0.07), transparent 70%); opacity: 1; }
+
+  .hero-idle {
+    font-family: 'Oxanium', sans-serif;
+    font-size: 14px;
+    letter-spacing: 4px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .hero-role-tag {
+    font-size: 11px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--muted2);
+    margin-bottom: 6px;
+    position: relative;
+  }
+
+  .hero-name {
+    font-family: 'Oxanium', sans-serif;
+    font-weight: 800;
+    font-size: clamp(32px, 7vw, 52px);
+    text-transform: uppercase;
+    letter-spacing: -1px;
+    line-height: 1;
+    position: relative;
+  }
+
+  .hero-card.tank .hero-name { color: var(--tank); }
+  .hero-card.dps  .hero-name { color: var(--dps); }
+  .hero-card.supp .hero-name { color: var(--supp); }
+
+  .hero-prev-stats {
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--muted2);
+    letter-spacing: 1px;
+    position: relative;
+  }
+
+  .hero-prev-stats .hw { color: var(--win); font-weight: 600; }
+  .hero-prev-stats .hl { color: var(--loss); font-weight: 600; }
+  .hero-prev-stats .hr { color: var(--gold); font-weight: 600; }
+
+  @keyframes pop-in {
+    0%  { opacity: 0; transform: scale(0.85) translateY(8px); }
+    100%{ opacity: 1; transform: scale(1) translateY(0); }
+  }
+  .pop { animation: pop-in 0.22s cubic-bezier(0.34,1.56,0.64,1) both; }
+
+  /* ── BUTTONS ── */
+  .btn-row { display: flex; gap: 10px; margin-bottom: 12px; }
+
+  .btn {
+    flex: 1;
+    font-family: 'Oxanium', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    border: none;
+    border-radius: 7px;
+    padding: 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.1); }
+  .btn:active:not(:disabled) { transform: translateY(0); }
+  .btn:disabled { opacity: 0.25; cursor: not-allowed; }
+
+  .btn-roll   { background: var(--gold); color: #0a0800; }
+  .btn-reroll { background: var(--surface2); color: var(--muted2); border: 1px solid var(--border2); flex: 0 0 auto; padding: 14px 18px; font-size: 18px; letter-spacing: 0; }
+  .btn-reroll:hover:not(:disabled) { color: var(--text); }
+  .btn-win    { background: var(--win);  color: #021008; }
+  .btn-loss   { background: var(--loss); color: #120202; }
+
+  /* ── MATCH LOG ── */
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .section-title {
+    font-family: 'Oxanium', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--muted2);
+  }
+
+  .overall-badge {
+    font-size: 13px;
+    color: var(--muted2);
+    font-family: 'Rajdhani', sans-serif;
+    letter-spacing: 1px;
+  }
+
+  .overall-badge .bw { color: var(--win); font-weight: 700; }
+  .overall-badge .bl { color: var(--loss); font-weight: 700; }
+  .overall-badge .br { color: var(--gold); font-weight: 700; }
+
+  .log-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    max-height: 280px;
+    overflow-y: auto;
+    padding-right: 2px;
+  }
+
+  .log-list::-webkit-scrollbar { width: 3px; }
+  .log-list::-webkit-scrollbar-track { background: transparent; }
+  .log-list::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  .log-entry {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 9px 12px;
+  }
+
+  .log-entry.win  { border-left: 3px solid var(--win); }
+  .log-entry.loss { border-left: 3px solid var(--loss); }
+
+  .log-badge {
+    font-family: 'Oxanium', sans-serif;
+    font-weight: 800;
+    font-size: 13px;
+    width: 24px;
+    flex-shrink: 0;
+    text-align: center;
+  }
+
+  .log-entry.win  .log-badge { color: var(--win); }
+  .log-entry.loss .log-badge { color: var(--loss); }
+
+  .log-hero {
+    font-family: 'Oxanium', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    flex: 1;
+  }
+
+  .log-role-tag {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 3px;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  .log-role-tag.tank { color: var(--tank); background: var(--tank-dim); }
+  .log-role-tag.dps  { color: var(--dps);  background: var(--dps-dim); }
+  .log-role-tag.supp { color: var(--supp); background: var(--supp-dim); }
+
+  .log-time { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+
+  .log-empty {
+    text-align: center;
+    padding: 28px;
+    font-family: 'Oxanium', sans-serif;
+    font-size: 12px;
+    letter-spacing: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  /* ── LEADERBOARD ── */
+  .lb-controls {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+
+  .lb-sort-btn {
+    font-family: 'Oxanium', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 7px 14px;
+    border: 1px solid var(--border2);
+    border-radius: 5px;
+    background: transparent;
+    color: var(--muted2);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .lb-sort-btn:hover { color: var(--text); border-color: var(--text); }
+  .lb-sort-btn.active { background: var(--surface2); color: var(--gold); border-color: var(--gold); }
+
+  .lb-filter {
+    margin-left: auto;
+    display: flex;
+    gap: 6px;
+  }
+
+  .lb-filter-btn {
+    font-family: 'Oxanium', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 7px 12px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .lb-filter-btn.active.tank { color: var(--tank); border-color: var(--tank); background: var(--tank-dim); }
+  .lb-filter-btn.active.dps  { color: var(--dps);  border-color: var(--dps);  background: var(--dps-dim); }
+  .lb-filter-btn.active.supp { color: var(--supp); border-color: var(--supp); background: var(--supp-dim); }
+  .lb-filter-btn.active.all  { color: var(--text); border-color: var(--border2); background: var(--surface2); }
+
+  .lb-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .lb-table th {
+    font-family: 'Oxanium', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .lb-table th:not(:first-child) { text-align: right; }
+
+  .lb-table td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 15px;
+  }
+
+  .lb-table td:not(:first-child) { text-align: right; }
+
+  .lb-table tr:last-child td { border-bottom: none; }
+  .lb-table tr:hover td { background: var(--surface2); }
+
+  .lb-rank {
+    font-family: 'Oxanium', sans-serif;
+    font-size: 11px;
+    color: var(--muted);
+    width: 28px;
+    display: inline-block;
+  }
+
+  .lb-hero-name {
+    font-family: 'Oxanium', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .lb-role-dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    margin-right: 8px;
+    vertical-align: middle;
+    flex-shrink: 0;
+  }
+
+  .lb-role-dot.tank { background: var(--tank); }
+  .lb-role-dot.dps  { background: var(--dps); }
+  .lb-role-dot.supp { background: var(--supp); }
+
+  .lb-winrate { font-family: 'Oxanium', sans-serif; font-weight: 700; }
+  .lb-winrate.high { color: var(--win); }
+  .lb-winrate.mid  { color: var(--gold); }
+  .lb-winrate.low  { color: var(--loss); }
+
+  .lb-overall-row td {
+    background: var(--surface2);
+    font-weight: 700;
+    border-top: 1px solid var(--border2);
+    color: var(--gold);
+  }
+
+  .lb-empty {
+    text-align: center;
+    padding: 40px;
+    font-family: 'Oxanium', sans-serif;
+    font-size: 12px;
+    letter-spacing: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  /* ── HERO PICKER MODAL ── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 12px;
+    padding: 24px;
+    width: 100%;
+    max-width: 480px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    margin: 20px;
+    animation: pop-in 0.2s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .modal-title {
+    font-family: 'Oxanium', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+
+  .modal-close {
+    background: none;
+    border: none;
+    color: var(--muted2);
+    font-size: 20px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 4px;
+    transition: color 0.15s;
+  }
+
+  .modal-close:hover { color: var(--text); }
+
+  .modal-search {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 16px;
+    width: 100%;
+    margin-bottom: 12px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .modal-search:focus { border-color: var(--gold); }
+  .modal-search::placeholder { color: var(--muted); }
+
+  .hero-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+
+  .hero-grid::-webkit-scrollbar { width: 3px; }
+  .hero-grid::-webkit-scrollbar-track { background: transparent; }
+  .hero-grid::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  .hero-pick-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: all 0.12s;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .hero-pick-btn:hover { border-color: var(--border2); transform: translateX(2px); }
+  .hero-pick-btn.tank:hover { border-color: var(--tank); background: var(--tank-dim); }
+  .hero-pick-btn.dps:hover  { border-color: var(--dps);  background: var(--dps-dim); }
+  .hero-pick-btn.supp:hover { border-color: var(--supp); background: var(--supp-dim); }
+
+  .hero-pick-name {
+    font-family: 'Oxanium', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .hero-pick-btn.tank .hero-pick-name { color: var(--tank); }
+  .hero-pick-btn.dps  .hero-pick-name { color: var(--dps); }
+  .hero-pick-btn.supp .hero-pick-name { color: var(--supp); }
+
+  .hero-pick-record {
+    font-size: 11px;
+    color: var(--muted2);
+    font-family: 'Rajdhani', sans-serif;
+    white-space: nowrap;
+  }
+
+  /* ── EXPORT ── */
+  .btn-export {
+    background: transparent;
+    border: 1px solid var(--border2);
+    color: var(--muted2);
+    font-family: 'Oxanium', sans-serif;
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    padding: 7px 14px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-export:hover { border-color: var(--text); color: var(--text); }
+
+  /* ── DIVIDER ── */
+  .divider { height: 1px; background: var(--border); margin: 24px 0; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <div class="brand-sub">Overwatch</div>
+      <div class="brand-title">OW <span>Tracker</span></div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+      <div class="streak-display">
+        <div class="streak-label">Current Streak</div>
+        <div class="streak-value none" id="streakVal">—</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn-export" onclick="saveFile()">💾 Save</button>
+        <button class="btn-export" onclick="document.getElementById('loadInput').click()">📂 Load</button>
+        <input type="file" id="loadInput" accept=".json" style="display:none" onchange="loadFile(event)" />
+      </div>
+    </div>
+  </header>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('play')">Play</button>
+    <button class="tab" onclick="switchTab('leaderboard')">Leaderboard</button>
+  </div>
+
+  <!-- PLAY PANEL -->
+  <div class="panel active" id="panel-play">
+
+    <div class="role-grid">
+      <button class="role-btn tank" onclick="selectRole('tank')">
+        <span class="role-icon">🛡️</span>
+        <span class="role-name">Tank</span>
+        <div class="role-record" id="role-record-tank">0W 0L</div>
+      </button>
+      <button class="role-btn dps" onclick="selectRole('dps')">
+        <span class="role-icon">⚔️</span>
+        <span class="role-name">DPS</span>
+        <div class="role-record" id="role-record-dps">0W 0L</div>
+      </button>
+      <button class="role-btn supp" onclick="selectRole('supp')">
+        <span class="role-icon">💚</span>
+        <span class="role-name">Support</span>
+        <div class="role-record" id="role-record-supp">0W 0L</div>
+      </button>
+    </div>
+
+    <div class="hero-card" id="heroCard">
+      <div class="hero-idle">Select a role to begin</div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-roll" id="rollBtn" onclick="rollHero()" disabled>Roll Hero</button>
+      <button class="btn btn-reroll" id="rerollBtn" onclick="rollHero()" disabled title="Reroll">↻</button>
+      <button class="btn btn-reroll" id="pickBtn" onclick="openPicker()" disabled title="Pick Hero" style="font-size:14px;letter-spacing:1px;padding:14px 16px">Pick</button>
+    </div>
+
+    <div class="btn-row" id="outcomeRow" style="display:none">
+      <button class="btn btn-win"  onclick="logResult('W')">✓ Win</button>
+      <button class="btn btn-loss" onclick="logResult('L')">✗ Loss</button>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-header">
+      <div class="section-title">Match Log</div>
+      <div class="overall-badge" id="overallBadge"></div>
+      <button class="btn-export" onclick="exportStats()">Export .txt</button>
+    </div>
+
+    <div class="log-list" id="logList">
+      <div class="log-empty">No matches yet</div>
+    </div>
+
+  </div>
+
+  <!-- LEADERBOARD PANEL -->
+  <div class="panel" id="panel-leaderboard">
+
+    <div class="lb-controls">
+      <button class="lb-sort-btn active" onclick="setSort('winrate')" id="sort-winrate">Winrate</button>
+      <button class="lb-sort-btn" onclick="setSort('wins')"   id="sort-wins">Wins</button>
+      <button class="lb-sort-btn" onclick="setSort('games')"  id="sort-games">Games</button>
+      <div class="lb-filter">
+        <button class="lb-filter-btn active all" onclick="setFilter('all')"  id="filter-all">All</button>
+        <button class="lb-filter-btn tank"       onclick="setFilter('tank')" id="filter-tank">Tank</button>
+        <button class="lb-filter-btn dps"        onclick="setFilter('dps')"  id="filter-dps">DPS</button>
+        <button class="lb-filter-btn supp"       onclick="setFilter('supp')" id="filter-supp">Supp</button>
+      </div>
+    </div>
+
+    <table class="lb-table" id="lbTable">
+      <thead>
+        <tr>
+          <th>Hero</th>
+          <th>W</th>
+          <th>L</th>
+          <th>Games</th>
+          <th>Winrate</th>
+        </tr>
+      </thead>
+      <tbody id="lbBody">
+        <tr><td colspan="5" class="lb-empty">No data yet — play some matches!</td></tr>
+      </tbody>
+    </table>
+
+  </div>
+
+</div>
+
+<!-- Hero Picker Modal -->
+<div class="modal-overlay" id="pickerModal" onclick="closePickerOutside(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">Pick a Hero</div>
+      <button class="modal-close" onclick="closePicker()">✕</button>
+    </div>
+    <input class="modal-search" id="heroSearch" placeholder="Search hero..." oninput="filterHeroes()" />
+    <div class="hero-grid" id="heroGrid"></div>
+  </div>
+</div>
+
+<script>
+// ── DATA ──
+const heroes = {
+  tank: ["D.va","Domina","Doomfist","Junkerqueen","Mauga","Orisa","Ramatra","Reinhardt","Roadhog","Sigma","Winton","Ball","Zarya"],
+  dps:  ["Anran","Ashe","Bastion","Cree","Echo","Emre","Freya","Genji","Hanzo","Junkrat","Mei","Phara","Reaper","Sojourn","Soldier","Sombra","Symmetra","Torb","Tracer","Vendetta","Venture","Widow"],
+  supp: ["Ana","Bap","Brig","Illari","Cat","Juno","Kiri","LifeWeaver","Lucio","Mercy","Mizuki","Moira","Wuyang","Zen"]
+};
+
+// Find role of a hero
+function heroRole(name) {
+  for (const [role, list] of Object.entries(heroes)) {
+    if (list.includes(name)) return role;
+  }
+  return null;
+}
+
+// ── STATE ──
+let currentRole = null;
+let currentHero = null;
+let matchLog    = [];
+let heroStats   = {};  // { heroName: {W,L,winrate} }
+let streak      = { type: null, count: 0 };  // {type:'W'|'L', count}
+let lbSort      = 'winrate';
+let lbFilter    = 'all';
+
+// ── STORAGE ──
+function saveData() {
+  // no-op: data lives in memory, user saves manually
+}
+
+function loadData() {
+  // no-op: user loads manually via file
+}
+
+function saveFile() {
+  if (matchLog.length === 0 && Object.keys(heroStats).length === 0) return;
+  const data = JSON.stringify({ matchLog, heroStats, streak }, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'ow-tracker-save.json';
+  a.click();
+}
+
+function loadFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const d = JSON.parse(e.target.result);
+      matchLog  = d.matchLog  || [];
+      heroStats = d.heroStats || {};
+      streak    = d.streak    || { type: null, count: 0 };
+      renderAll();
+      // reset input so the same file can be loaded again if needed
+      event.target.value = '';
+    } catch {
+      alert('Invalid save file.');
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ── TABS ──
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['play','leaderboard'][i] === name));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  if (name === 'leaderboard') renderLeaderboard();
+}
+
+// ── ROLE SELECT ──
+function selectRole(role) {
+  currentRole = role;
+  document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.role-btn.${role}`).classList.add('active');
+  document.getElementById('rollBtn').disabled = false;
+  document.getElementById('rerollBtn').disabled = false;
+  document.getElementById('pickBtn').disabled = false;
+  document.getElementById('outcomeRow').style.display = 'none';
+  currentHero = null;
+
+  const card = document.getElementById('heroCard');
+  card.className = 'hero-card ' + role;
+  card.innerHTML = `<div class="hero-idle">Press Roll Hero</div>`;
+}
+
+// ── ROLL ──
+function rollHero() {
+  if (!currentRole) return;
+  const pool = heroes[currentRole];
+  currentHero = pool[Math.floor(Math.random() * pool.length)];
+
+  const s = heroStats[currentHero];
+  let prevHtml = '';
+  if (s) {
+    prevHtml = `<div class="hero-prev-stats">
+      <span class="hw">${s.W}W</span> · <span class="hl">${s.L}L</span> · <span class="hr">${s.winrate}%</span>
+    </div>`;
+  } else {
+    prevHtml = `<div class="hero-prev-stats" style="color:var(--muted)">No history</div>`;
+  }
+
+  const card = document.getElementById('heroCard');
+  card.className = 'hero-card ' + currentRole;
+  card.innerHTML = `
+    <div class="hero-role-tag pop">${currentRole.toUpperCase()}</div>
+    <div class="hero-name pop">${currentHero}</div>
+    ${prevHtml}
+  `;
+
+  document.getElementById('outcomeRow').style.display = 'flex';
+}
+
+// ── LOG RESULT ──
+function logResult(outcome) {
+  if (!currentHero) return;
+
+  const now = new Date();
+  const ts  = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const full = now.toLocaleString();
+
+  // Match log
+  matchLog.unshift({ hero: currentHero, role: currentRole, outcome, ts, full });
+
+  // Hero stats
+  if (!heroStats[currentHero]) heroStats[currentHero] = { W: 0, L: 0, winrate: 0 };
+  heroStats[currentHero][outcome]++;
+  const total = heroStats[currentHero].W + heroStats[currentHero].L;
+  heroStats[currentHero].winrate = Math.round(heroStats[currentHero].W / total * 1000) / 10;
+
+  // Streak
+  if (streak.type === outcome) {
+    streak.count++;
+  } else {
+    streak.type = outcome;
+    streak.count = 1;
+  }
+
+  saveData();
+  renderAll();
+
+  // Reset
+  document.getElementById('outcomeRow').style.display = 'none';
+  currentHero = null;
+  const card = document.getElementById('heroCard');
+  card.className = 'hero-card ' + currentRole;
+  card.innerHTML = `<div class="hero-idle">Press Roll Hero</div>`;
+}
+
+// ── RENDER ALL ──
+function renderAll() {
+  renderStreak();
+  renderRoleRecords();
+  renderLog();
+  renderOverall();
+}
+
+function renderStreak() {
+  const el = document.getElementById('streakVal');
+  if (!streak.type || streak.count === 0) {
+    el.textContent = '—';
+    el.className = 'streak-value none';
+  } else {
+    el.textContent = streak.count + (streak.type === 'W' ? 'W 🔥' : 'L 💀');
+    el.className = 'streak-value ' + (streak.type === 'W' ? 'win-streak' : 'loss-streak');
+  }
+}
+
+function renderRoleRecords() {
+  for (const role of ['tank','dps','supp']) {
+    const entries = matchLog.filter(m => m.role === role);
+    const w = entries.filter(m => m.outcome === 'W').length;
+    const l = entries.filter(m => m.outcome === 'L').length;
+    document.getElementById(`role-record-${role}`).textContent = `${w}W ${l}L`;
+  }
+}
+
+function renderOverall() {
+  const badge = document.getElementById('overallBadge');
+  if (matchLog.length === 0) { badge.innerHTML = ''; return; }
+  const w = matchLog.filter(m => m.outcome === 'W').length;
+  const l = matchLog.length - w;
+  const pct = Math.round(w / matchLog.length * 1000) / 10;
+  badge.innerHTML = `<span class="bw">${w}W</span> · <span class="bl">${l}L</span> · <span class="br">${pct}%</span>`;
+}
+
+function renderLog() {
+  const list = document.getElementById('logList');
+  if (matchLog.length === 0) {
+    list.innerHTML = '<div class="log-empty">No matches yet</div>';
+    return;
+  }
+  list.innerHTML = matchLog.map(m => `
+    <div class="log-entry ${m.outcome === 'W' ? 'win' : 'loss'}">
+      <div class="log-badge">${m.outcome}</div>
+      <div class="log-hero">${m.hero}</div>
+      <div class="log-role-tag ${m.role}">${m.role}</div>
+      <div class="log-time">${m.ts}</div>
+    </div>
+  `).join('');
+}
+
+// ── LEADERBOARD ──
+function setSort(s) {
+  lbSort = s;
+  document.querySelectorAll('.lb-sort-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('sort-' + s).classList.add('active');
+  renderLeaderboard();
+}
+
+function setFilter(f) {
+  lbFilter = f;
+  document.querySelectorAll('.lb-filter-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('filter-' + f);
+  btn.classList.add('active');
+  renderLeaderboard();
+}
+
+function renderLeaderboard() {
+  const body = document.getElementById('lbBody');
+  let entries = Object.entries(heroStats);
+
+  if (entries.length === 0) {
+    body.innerHTML = '<tr><td colspan="5" class="lb-empty">No data yet — play some matches!</td></tr>';
+    return;
+  }
+
+  // Filter by role
+  if (lbFilter !== 'all') {
+    entries = entries.filter(([name]) => heroRole(name) === lbFilter);
+  }
+
+  // Sort
+  if (lbSort === 'winrate') entries.sort((a,b) => b[1].winrate - a[1].winrate);
+  if (lbSort === 'wins')    entries.sort((a,b) => b[1].W - a[1].W);
+  if (lbSort === 'games')   entries.sort((a,b) => (b[1].W+b[1].L) - (a[1].W+a[1].L));
+
+  const rows = entries.map(([name, s], i) => {
+    const games = s.W + s.L;
+    const role  = heroRole(name) || 'dps';
+    const rateClass = s.winrate >= 60 ? 'high' : s.winrate >= 45 ? 'mid' : 'low';
+    return `<tr>
+      <td>
+        <span class="lb-rank">${i+1}</span>
+        <span class="lb-role-dot ${role}"></span>
+        <span class="lb-hero-name">${name}</span>
+      </td>
+      <td style="color:var(--win);font-weight:700">${s.W}</td>
+      <td style="color:var(--loss)">${s.L}</td>
+      <td style="color:var(--muted2)">${games}</td>
+      <td><span class="lb-winrate ${rateClass}">${s.winrate}%</span></td>
+    </tr>`;
+  }).join('');
+
+  // Overall row (only when showing all)
+  let overallRow = '';
+  if (lbFilter === 'all' && matchLog.length > 0) {
+    const w = matchLog.filter(m => m.outcome === 'W').length;
+    const l = matchLog.length - w;
+    const pct = Math.round(w / matchLog.length * 1000) / 10;
+    const rateClass = pct >= 60 ? 'high' : pct >= 45 ? 'mid' : 'low';
+    overallRow = `<tr class="lb-overall-row">
+      <td><span class="lb-rank">—</span><span style="font-family:'Oxanium',sans-serif;font-weight:700;letter-spacing:1px;text-transform:uppercase">Overall</span></td>
+      <td style="color:var(--win);font-weight:700">${w}</td>
+      <td style="color:var(--loss)">${l}</td>
+      <td>${matchLog.length}</td>
+      <td><span class="lb-winrate ${rateClass}">${pct}%</span></td>
+    </tr>`;
+  }
+
+  body.innerHTML = rows + overallRow;
+}
+
+// ── EXPORT ──
+function exportStats() {
+  if (matchLog.length === 0) return;
+  const lines = matchLog.map(m => `${m.full}  ${m.hero.padEnd(14)}  ${m.role.padEnd(5)}  ${m.outcome}`).join('\n');
+  const blob = new Blob([lines], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'Stats.txt';
+  a.click();
+}
+
+// ── HERO PICKER ──
+function openPicker() {
+  if (!currentRole) return;
+  document.getElementById('modalTitle').textContent = `Pick a ${currentRole.toUpperCase()} Hero`;
+  document.getElementById('heroSearch').value = '';
+  document.getElementById('pickerModal').classList.add('open');
+  renderPickerGrid('');
+  document.getElementById('heroSearch').focus();
+}
+
+function closePicker() {
+  document.getElementById('pickerModal').classList.remove('open');
+}
+
+function closePickerOutside(e) {
+  if (e.target === document.getElementById('pickerModal')) closePicker();
+}
+
+function filterHeroes() {
+  const q = document.getElementById('heroSearch').value.toLowerCase();
+  renderPickerGrid(q);
+}
+
+function renderPickerGrid(query) {
+  const pool = heroes[currentRole];
+  const filtered = pool.filter(h => h.toLowerCase().includes(query));
+  const grid = document.getElementById('heroGrid');
+
+  grid.innerHTML = filtered.map(h => {
+    const s = heroStats[h];
+    const record = s ? `${s.W}W ${s.L}L` : '';
+    return `<button class="hero-pick-btn ${currentRole}" onclick="pickHero('${h}')">
+      <span class="hero-pick-name">${h}</span>
+      <span class="hero-pick-record">${record}</span>
+    </button>`;
+  }).join('');
+}
+
+function pickHero(name) {
+  currentHero = name;
+  closePicker();
+
+  const s = heroStats[name];
+  const prevHtml = s
+    ? `<div class="hero-prev-stats"><span class="hw">${s.W}W</span> · <span class="hl">${s.L}L</span> · <span class="hr">${s.winrate}%</span></div>`
+    : `<div class="hero-prev-stats" style="color:var(--muted)">No history</div>`;
+
+  const card = document.getElementById('heroCard');
+  card.className = 'hero-card ' + currentRole;
+  card.innerHTML = `
+    <div class="hero-role-tag pop">${currentRole.toUpperCase()}</div>
+    <div class="hero-name pop">${name}</div>
+    ${prevHtml}
+  `;
+
+  document.getElementById('outcomeRow').style.display = 'flex';
+}
+
+// ── INIT ──
+loadData();
+renderAll();
+</script>
+</body>
+</html>
