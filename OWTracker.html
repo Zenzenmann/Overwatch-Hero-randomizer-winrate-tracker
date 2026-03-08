@@ -998,7 +998,9 @@ function renderRoleRecords() {
     const entries = matchLog.filter(m => m.role === role);
     const w = entries.filter(m => m.outcome === 'W').length;
     const l = entries.filter(m => m.outcome === 'L').length;
-    document.getElementById(`role-record-${role}`).textContent = `${w}W ${l}L`;
+    const pct = w + l > 0 ? Math.round(w / (w + l) * 1000) / 10 : null;
+    const pctStr = pct !== null ? ` · ${pct}%` : '';
+    document.getElementById(`role-record-${role}`).textContent = `${w}W ${l}L${pctStr}`;
   }
 }
 
