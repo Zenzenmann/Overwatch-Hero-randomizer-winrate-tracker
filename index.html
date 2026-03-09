@@ -818,9 +818,8 @@
     </div>
 
     <div class="btn-row">
-      <button class="btn btn-roll" id="pickBtn" onclick="openPicker()" disabled>Pick Hero</button>
-      <button class="btn btn-reroll" id="rerollBtn" onclick="rollHero()" disabled title="Reroll">↻</button>
-      <button class="btn btn-reroll" id="rollBtn" onclick="rollHero()" disabled title="Roll Random" style="font-size:14px;letter-spacing:1px;padding:14px 16px">Roll</button>
+    <button class="btn btn-roll" id="pickBtn" onclick="openPicker()" disabled>Pick Hero</button>
+    <button class="btn btn-reroll" id="rollBtn" onclick="rollHero()" disabled title="Roll Random" style="font-size:14px;letter-spacing:1px;padding:14px 16px">Roll</button>
     </div>
 
     <div class="btn-row" id="outcomeRow" style="display:none">
@@ -1008,7 +1007,6 @@ function selectRole(role) {
   document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
   document.querySelector(`.role-btn.${role}`).classList.add('active');
   document.getElementById('rollBtn').disabled = false;
-  document.getElementById('rerollBtn').disabled = false;
   document.getElementById('pickBtn').disabled = false;
   document.getElementById('outcomeRow').style.display = 'none';
   document.getElementById('mapRow').classList.remove('visible');
