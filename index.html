@@ -956,11 +956,21 @@ let lbFilter    = 'all';
 
 // ── STORAGE ──
 function saveData() {
-  // no-op: data lives in memory, user saves manually
+   localStorage.setItem('ow_tracker', JSON.stringify({ matchLog, heroStats, mapStats, streak }));
 }
 
 function loadData() {
-  // no-op: user loads manually via file
+  try {
+    const raw = localStorage.getItem('ow_tracker');
+    if (!raw) return;
+    const d = JSON.parse(raw);
+    matchLog  = d.matchLog  || [];
+    heroStats = d.heroStats || {};
+    mapStats  = d.mapStats  || {};
+    streak    = d.streak    || { type: null, count: 0 };
+  } catch(e) {
+    matchLog = []; heroStats = {}; mapStats = {}; streak = { type: null, count: 0 };
+  }
 }
 
 function saveFile() {
