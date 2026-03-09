@@ -677,6 +677,71 @@
     white-space: nowrap;
   }
 
+  /* ── MAP PICKER ── */
+  .map-row { display: none; margin-bottom: 12px; }
+  .map-row.visible { display: flex; gap: 10px; align-items: center; }
+
+  .map-select-btn {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 7px;
+    padding: 12px 16px;
+    color: var(--text);
+    font-family: 'Oxanium', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.15s;
+  }
+  .map-select-btn:hover { border-color: var(--gold); }
+  .map-select-btn.selected { border-color: var(--gold); background: var(--gold-dim); color: var(--gold); }
+
+  .map-type-tabs { display: flex; gap: 4px; margin-bottom: 12px; flex-wrap: wrap; }
+  .map-type-tab {
+    font-family: 'Oxanium', sans-serif; font-size: 10px; font-weight: 600;
+    letter-spacing: 2px; text-transform: uppercase; padding: 5px 10px;
+    border: 1px solid var(--border2); border-radius: 4px; background: transparent;
+    color: var(--muted2); cursor: pointer; transition: all 0.15s;
+  }
+  .map-type-tab:hover { color: var(--text); }
+  .map-type-tab.active { background: var(--surface2); color: var(--gold); border-color: var(--gold); }
+
+  .map-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px;
+    overflow-y: auto; max-height: 340px; padding-right: 4px;
+  }
+  .map-grid::-webkit-scrollbar { width: 3px; }
+  .map-grid::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  .map-pick-btn {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
+    padding: 9px 12px; cursor: pointer; transition: all 0.12s; text-align: left;
+    display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  }
+  .map-pick-btn:hover { border-color: var(--gold); background: var(--gold-dim); }
+  .map-pick-name { font-family: 'Oxanium', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; color: var(--text); }
+  .map-pick-type { font-size: 10px; color: var(--muted2); font-family: 'Rajdhani', sans-serif; letter-spacing: 1px; }
+  .map-pick-record { font-size: 10px; color: var(--muted2); font-family: 'Rajdhani', sans-serif; white-space: nowrap; }
+
+  .maps-section-title {
+    font-family: 'Oxanium', sans-serif; font-size: 11px; font-weight: 600;
+    letter-spacing: 4px; text-transform: uppercase; color: var(--muted2);
+    margin: 28px 0 12px; padding-top: 24px; border-top: 1px solid var(--border);
+  }
+
+  .log-map {
+    font-size: 10px; color: var(--muted2); font-family: 'Rajdhani', sans-serif;
+    letter-spacing: 1px; flex-shrink: 0; max-width: 90px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
   /* ── EXPORT ── */
   .btn-export {
     background: transparent;
@@ -763,6 +828,14 @@
       <button class="btn btn-loss" onclick="logResult('L')">✗ Loss</button>
     </div>
 
+    <div class="map-row" id="mapRow">
+      <button class="map-select-btn" id="mapSelectBtn" onclick="openMapPicker()">
+        <span id="mapSelectLabel">Select Map (optional)</span>
+        <span style="color:var(--muted2);font-size:10px">▼</span>
+      </button>
+      <button class="map-select-btn" style="flex:0 0 auto;padding:12px 14px;justify-content:center" onclick="clearMap()" title="Clear map">✕</button>
+    </div>
+
     <div class="divider"></div>
 
     <div class="section-header">
@@ -807,8 +880,29 @@
       </tbody>
     </table>
 
+    <div class="maps-section-title">Map Stats</div>
+    <table class="lb-table">
+      <thead><tr><th>Map</th><th>Type</th><th>W</th><th>L</th><th>Winrate</th></tr></thead>
+      <tbody id="mapBody">
+        <tr><td colspan="5" class="lb-empty">No map data yet</td></tr>
+      </tbody>
+    </table>
+
   </div>
 
+</div>
+
+<!-- Map Picker Modal -->
+<div class="modal-overlay" id="mapPickerModal" onclick="if(event.target===this)closeMapPicker()">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Select Map</div>
+      <button class="modal-close" onclick="closeMapPicker()">✕</button>
+    </div>
+    <input class="modal-search" id="mapSearch" placeholder="Search map..." oninput="filterMaps()" />
+    <div class="map-type-tabs" id="mapTypeTabs"></div>
+    <div class="map-grid" id="mapGrid"></div>
+  </div>
 </div>
 
 <!-- Hero Picker Modal -->
@@ -839,12 +933,25 @@ function heroRole(name) {
   return null;
 }
 
+// ── MAP DATA ──
+const maps = {
+  Control:    ["Antarctic Peninsula","Busan","Ilios","Lijiang Tower","Nepal","Oasis","Samoa"],
+  Escort:     ["Circuit Royal","Dorado","Havana","Junkertown","Rialto","Route 66","Shambali","Watchpoint Gibraltar"],
+  Hybrid:     ["Blizzard World","Eichenwalde","Hollywood","King's Row","Midtown","Numbani","Paraíso"],
+  Push:       ["Colosseo","Esperança","New Queen Street","Runasapi"],
+  Flashpoint: ["New Junk City","Suravasa"],
+  Clash:      ["Hanaoka","Throne of Anubis"],
+};
+
 // ── STATE ──
 let currentRole = null;
 let currentHero = null;
+let currentMap  = null;
+let mapFilter   = 'All';
 let matchLog    = [];
-let heroStats   = {};  // { heroName: {W,L,winrate} }
-let streak      = { type: null, count: 0 };  // {type:'W'|'L', count}
+let heroStats   = {};
+let mapStats    = {};
+let streak      = { type: null, count: 0 };
 let lbSort      = 'winrate';
 let lbFilter    = 'all';
 
@@ -859,7 +966,7 @@ function loadData() {
 
 function saveFile() {
   if (matchLog.length === 0 && Object.keys(heroStats).length === 0) return;
-  const data = JSON.stringify({ matchLog, heroStats, streak }, null, 2);
+  const data = JSON.stringify({ matchLog, heroStats, mapStats, streak }, null, 2);
   const blob = new Blob([data], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -876,9 +983,9 @@ function loadFile(event) {
       const d = JSON.parse(e.target.result);
       matchLog  = d.matchLog  || [];
       heroStats = d.heroStats || {};
+      mapStats  = d.mapStats  || {};
       streak    = d.streak    || { type: null, count: 0 };
       renderAll();
-      // reset input so the same file can be loaded again if needed
       event.target.value = '';
     } catch {
       alert('Invalid save file.');
@@ -904,7 +1011,9 @@ function selectRole(role) {
   document.getElementById('rerollBtn').disabled = false;
   document.getElementById('pickBtn').disabled = false;
   document.getElementById('outcomeRow').style.display = 'none';
+  document.getElementById('mapRow').classList.remove('visible');
   currentHero = null;
+  currentMap  = null;
 
   const card = document.getElementById('heroCard');
   card.className = 'hero-card ' + role;
@@ -936,6 +1045,10 @@ function rollHero() {
   `;
 
   document.getElementById('outcomeRow').style.display = 'flex';
+  document.getElementById('mapRow').classList.add('visible');
+  currentMap = null;
+  document.getElementById('mapSelectBtn').classList.remove('selected');
+  document.getElementById('mapSelectLabel').textContent = 'Select Map (optional)';
 }
 
 // ── LOG RESULT ──
@@ -947,13 +1060,27 @@ function logResult(outcome) {
   const full = now.toLocaleString();
 
   // Match log
-  matchLog.unshift({ hero: currentHero, role: currentRole, outcome, ts, full });
+  let mapType = null;
+  if (currentMap) {
+    for (const [type, list] of Object.entries(maps)) {
+      if (list.includes(currentMap)) { mapType = type; break; }
+    }
+  }
+  matchLog.unshift({ hero: currentHero, role: currentRole, outcome, ts, full, map: currentMap, mapType });
 
   // Hero stats
   if (!heroStats[currentHero]) heroStats[currentHero] = { W: 0, L: 0, winrate: 0 };
   heroStats[currentHero][outcome]++;
   const total = heroStats[currentHero].W + heroStats[currentHero].L;
   heroStats[currentHero].winrate = Math.round(heroStats[currentHero].W / total * 1000) / 10;
+
+  // Map stats
+  if (currentMap) {
+    if (!mapStats[currentMap]) mapStats[currentMap] = { W: 0, L: 0, winrate: 0, type: mapType };
+    mapStats[currentMap][outcome]++;
+    const mt = mapStats[currentMap].W + mapStats[currentMap].L;
+    mapStats[currentMap].winrate = Math.round(mapStats[currentMap].W / mt * 1000) / 10;
+  }
 
   // Streak
   if (streak.type === outcome) {
@@ -968,7 +1095,9 @@ function logResult(outcome) {
 
   // Reset
   document.getElementById('outcomeRow').style.display = 'none';
+  document.getElementById('mapRow').classList.remove('visible');
   currentHero = null;
+  currentMap  = null;
   const card = document.getElementById('heroCard');
   card.className = 'hero-card ' + currentRole;
   card.innerHTML = `<div class="hero-idle">Press Roll Hero</div>`;
@@ -980,6 +1109,7 @@ function renderAll() {
   renderRoleRecords();
   renderLog();
   renderOverall();
+  renderMapStats();
 }
 
 function renderStreak() {
@@ -1024,6 +1154,7 @@ function renderLog() {
       <div class="log-badge">${m.outcome}</div>
       <div class="log-hero">${m.hero}</div>
       <div class="log-role-tag ${m.role}">${m.role}</div>
+      ${m.map ? `<div class="log-map">${m.map}</div>` : ''}
       <div class="log-time">${m.ts}</div>
     </div>
   `).join('');
@@ -1167,6 +1298,96 @@ function pickHero(name) {
   `;
 
   document.getElementById('outcomeRow').style.display = 'flex';
+  document.getElementById('mapRow').classList.add('visible');
+  currentMap = null;
+  document.getElementById('mapSelectBtn').classList.remove('selected');
+  document.getElementById('mapSelectLabel').textContent = 'Select Map (optional)';
+}
+
+// ── MAP PICKER ──
+function openMapPicker() {
+  mapFilter = 'All';
+  document.getElementById('mapSearch').value = '';
+  document.getElementById('mapPickerModal').classList.add('open');
+  renderMapTypeTabs();
+  renderMapGrid('');
+  document.getElementById('mapSearch').focus();
+}
+
+function closeMapPicker() {
+  document.getElementById('mapPickerModal').classList.remove('open');
+}
+
+function clearMap() {
+  currentMap = null;
+  document.getElementById('mapSelectBtn').classList.remove('selected');
+  document.getElementById('mapSelectLabel').textContent = 'Select Map (optional)';
+}
+
+function filterMaps() {
+  renderMapGrid(document.getElementById('mapSearch').value.toLowerCase());
+}
+
+function setMapFilter(type) {
+  mapFilter = type;
+  renderMapTypeTabs();
+  renderMapGrid(document.getElementById('mapSearch').value.toLowerCase());
+}
+
+function renderMapTypeTabs() {
+  const types = ['All', ...Object.keys(maps)];
+  document.getElementById('mapTypeTabs').innerHTML = types.map(t =>
+    `<button class="map-type-tab ${t === mapFilter ? 'active' : ''}" onclick="setMapFilter('${t}')">${t}</button>`
+  ).join('');
+}
+
+function renderMapGrid(query) {
+  let allMaps = [];
+  if (mapFilter === 'All') {
+    for (const [type, list] of Object.entries(maps)) list.forEach(m => allMaps.push({ name: m, type }));
+  } else {
+    (maps[mapFilter] || []).forEach(m => allMaps.push({ name: m, type: mapFilter }));
+  }
+  if (query) allMaps = allMaps.filter(m => m.name.toLowerCase().includes(query));
+
+  document.getElementById('mapGrid').innerHTML = allMaps.map(m => {
+    const s = mapStats[m.name];
+    const record = s ? `${s.W}W ${s.L}L` : '';
+    return `<button class="map-pick-btn" onclick="pickMap('${m.name.replace(/'/g,"\\'")}')">
+      <div>
+        <div class="map-pick-name">${m.name}</div>
+        <div class="map-pick-type">${m.type}</div>
+      </div>
+      <span class="map-pick-record">${record}</span>
+    </button>`;
+  }).join('');
+}
+
+function pickMap(name) {
+  currentMap = name;
+  closeMapPicker();
+  document.getElementById('mapSelectBtn').classList.add('selected');
+  document.getElementById('mapSelectLabel').textContent = name;
+}
+
+function renderMapStats() {
+  const body = document.getElementById('mapBody');
+  const entries = Object.entries(mapStats);
+  if (entries.length === 0) {
+    body.innerHTML = '<tr><td colspan="5" class="lb-empty">No map data yet</td></tr>';
+    return;
+  }
+  entries.sort((a,b) => b[1].winrate - a[1].winrate);
+  body.innerHTML = entries.map(([name, s], i) => {
+    const rateClass = s.winrate >= 60 ? 'high' : s.winrate >= 45 ? 'mid' : 'low';
+    return `<tr>
+      <td><span class="lb-rank">${i+1}</span><span class="lb-hero-name">${name}</span></td>
+      <td style="color:var(--muted2);font-size:12px">${s.type || ''}</td>
+      <td style="color:var(--win);font-weight:700">${s.W}</td>
+      <td style="color:var(--loss)">${s.L}</td>
+      <td><span class="lb-winrate ${rateClass}">${s.winrate}%</span></td>
+    </tr>`;
+  }).join('');
 }
 
 // ── INIT ──
